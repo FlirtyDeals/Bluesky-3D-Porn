@@ -1,14 +1,33 @@
 // src/algos/simpleTopic.js
+import fs from 'fs';
+import path from 'path';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const DB_PATH = path.join(DATA_DIR, 'feedgen.db');
 
 let dbPromise;
 async function getDb() {
   if (!dbPromise) {
+    // Ensure data directory exists and is writable
+    await fs.promises.mkdir(DATA_DIR, { recursive: true });
+
     dbPromise = open({
-      filename: './data/feedgen.db',
+      filename: DB_PATH,
       driver: sqlite3.Database
     });
+
+    // Ensure schema exists
+    const db = await dbPromise;
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS posts (
+        post_uri TEXT PRIMARY KEY,
+        author TEXT,
+        created INTEGER,
+        cid TEXT
+      )
+    `);
   }
   return dbPromise;
 }
