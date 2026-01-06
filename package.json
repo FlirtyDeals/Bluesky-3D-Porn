@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "publishFeed": "node scripts/publishFeedGen.js"
+    "publishFeed": "node scripts/publishFeedGen.js",
+    "postinstall": "npm rebuild sqlite3 --build-from-source"
   },
   "dependencies": {
     "@atproto/api": "^0.9.8",
