@@ -2,12 +2,12 @@
 import pkg from '@atproto/api';
 const { BskyAgent } = pkg;
 
-import fs from 'fs';
-import path from 'path';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
-// The five handles you want in the feed
+const DB_PATH = '/tmp/feedgen.db';
+
+// Handles included in feed
 const HANDLES = [
   'marvel-rivals-porn.bsky.social',
   'star-wars-porn.bsky.social',
@@ -16,18 +16,12 @@ const HANDLES = [
   'warcraft-porn.bsky.social'
 ];
 
-// Poll interval in seconds (adjust if needed)
-const POLL_INTERVAL = Number(process.env.POLL_INTERVAL || 300); // default 300s = 5min
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'feedgen.db');
+const POLL_INTERVAL = Number(process.env.POLL_INTERVAL || 300);
 
 let dbPromise;
+
 async function getDb() {
   if (!dbPromise) {
-    // Ensure data directory exists and is writable
-    await fs.promises.mkdir(DATA_DIR, { recursive: true });
-
     dbPromise = open({
       filename: DB_PATH,
       driver: sqlite3.Database
@@ -47,7 +41,9 @@ async function getDb() {
 }
 
 export async function startSubscription() {
-  const agent = new BskyAgent({ service: process.env.BSKY_SERVICE || 'https://bsky.social' });
+  const agent = new BskyAgent({
+    service: process.env.BSKY_SERVICE || 'https://bsky.social'
+  });
 
   try {
     await agent.login({
@@ -56,7 +52,7 @@ export async function startSubscription() {
     });
     console.log('Poll agent logged in');
   } catch (err) {
-    console.warn('Poll agent login failed (feed may still work via public API)', err?.message || err);
+    console.warn('Poll agent login failed', err?.message || err);
   }
 
   async function pollOnce() {
@@ -64,17 +60,25 @@ export async function startSubscription() {
 
     for (const handle of HANDLES) {
       try {
-        // Fetch author feed
-        const feedRes = await agent.api.app.bsky.feed.getAuthorFeed({ actor: handle, limit: 50 });
+        const feedRes = await agent.api.app.bsky.feed.getAuthorFeed({
+          actor: handle,
+          limit: 50
+        });
+
         const feedItems = feedRes?.data?.feed || [];
 
         for (const item of feedItems) {
           const post = item.post || item;
-          if (!post.cid || !post.uri) continue;
-          const created = post.createdAt ? Date.parse(post.createdAt) : Date.now();
+          if (!post?.cid || !post?.uri) continue;
+
+          const created = post.createdAt
+            ? Date.parse(post.createdAt)
+            : Date.now();
 
           await db.run(
-            `INSERT OR REPLACE INTO posts(post_uri, author, created, cid) VALUES(?,?,?,?)`,
+            `INSERT OR REPLACE INTO posts
+             (post_uri, author, created, cid)
+             VALUES (?,?,?,?)`,
             [post.uri, handle, created, post.cid]
           );
         }
