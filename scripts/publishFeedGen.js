@@ -151,17 +151,19 @@ async function publish() {
   }
   console.log('Using avatar blob ref:', avatarRef);
 
-  // build record (createdAt required)
-  const record = {
-    displayName: FEED_NAME,
-    did: agent.session?.did,
-    name: FEED_NAME,
-    description: FEED_DESC,
-    avatar: avatarRef,
-    version: '1',
-    service: `https://${SERVICE_HOSTNAME}`,
-    createdAt: new Date().toISOString()
-  };
+const SERVICE_DID = `did:web:${SERVICE_HOSTNAME}`;
+
+const record = {
+  displayName: FEED_NAME,
+  // point the feed declaration at the web DID that hosts your service
+  did: SERVICE_DID,
+  name: FEED_NAME,
+  description: FEED_DESC,
+  avatar: avatarRef,
+  version: '1',
+  service: `https://${SERVICE_HOSTNAME}`,
+  createdAt: new Date().toISOString()
+};
 
   try {
     const res = await agent.api.com.atproto.repo.putRecord({
