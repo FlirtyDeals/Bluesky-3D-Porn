@@ -169,7 +169,7 @@ const record = {
     const res = await agent.api.com.atproto.repo.putRecord({
       repo: agent.session.did,
       collection: 'app.bsky.feed.generator',
-      rkey: '3d-porn',
+      rkey: '3d-porn-v2',
       record,
     });
     console.log('Feed published successfully.');
