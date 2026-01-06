@@ -1,5 +1,7 @@
 // src/subscription.js
-import { BskyAgent } from '@atproto/api';
+import pkg from '@atproto/api';
+const { BskyAgent } = pkg;
+
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
