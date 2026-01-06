@@ -151,7 +151,7 @@ async function publish() {
   }
   console.log('Using avatar blob ref:', avatarRef);
 
-const SERVICE_DID = `did:web:${SERVICE_HOSTNAME}`;
+const SERVICE_DID = "did:web:bluesky-3d-porn.onrender.com";
 
 const record = {
   displayName: FEED_NAME,
