@@ -5,7 +5,7 @@
     {
       "id": "#feed",
       "type": "BskyFeedGenerator",
-      "serviceEndpoint": "https://bluesky-3d-porn.onrender.com/xrpc/app.bsky.feed.getFeedSkeleton",
+      "serviceEndpoint": "https://bluesky-3d-porn.onrender.com",
       "recipientKeys": ["did:plc:k7pa7fkl64y5zt5g77tf4xxx"]
     }
   ]
