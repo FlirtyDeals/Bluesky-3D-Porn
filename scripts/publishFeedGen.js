@@ -1,7 +1,7 @@
 // scripts/publishFeedGen.js
 // Robust publish script: verifies PNG, fetches if needed, uploads blob with forced mimeType,
 // then publishes an app.bsky.feed.generator record.
-// Requires env vars: PUBLISH_HANDLE, PUBLISH_PASSWORD, FEEDGEN_HOSTNAME
+// Requires env vars: PUBLISH_HANDLE, PUBLISH_PASSWORD, optional FEEDGEN_HOSTNAME, optional RKEY
 
 import fs from 'fs';
 import path from 'path';
@@ -10,6 +10,8 @@ import pkg from '@atproto/api';
 const { BskyAgent } = pkg;
 
 const SERVICE_HOSTNAME = process.env.FEEDGEN_HOSTNAME || 'bluesky-3d-porn.onrender.com';
+const SERVICE_DID = `did:web:${SERVICE_HOSTNAME}`;
+const RKEY = process.env.RKEY || '3d-porn-v2';
 const FEED_NAME = '3D Porn - Rule 34';
 const FEED_DESC = 'Rule 34 Porn from popular video games, featuring iconic game characters';
 const LOCAL_LOGO_PATH = path.join('public', '3d-porn.png');
@@ -103,7 +105,7 @@ async function publish() {
   const agent = new BskyAgent({ service: 'https://bsky.social' });
   try {
     await agent.login({ identifier: handle, password });
-    console.log('Logged in as', handle);
+    console.log('Logged in as', handle, 'did:', agent.session?.did);
   } catch (err) {
     console.error('Login failed:', err?.message ?? err);
     process.exit(1);
@@ -122,23 +124,26 @@ async function publish() {
   // upload blob forcing mimeType image/png
   let uploadResp;
   try {
-    // Preferred: use SDK convenience method if it accepts Buffer correctly.
+    // Try SDK convenience methods first with variants, then fallback to raw xrpc upload.
     if (typeof agent.uploadBlob === 'function') {
       try {
-        // Try passing raw Buffer. Some SDK builds accept Buffer directly.
-        uploadResp = await agent.uploadBlob(img.buffer, { encoding: 'image/png' });
+        // common SDK option names vary; try a few
+        try {
+          uploadResp = await agent.uploadBlob(img.buffer, { mimeType: 'image/png' });
+        } catch (e1) {
+          uploadResp = await agent.uploadBlob(img.buffer, { encoding: 'image/png' });
+        }
       } catch (innerErr) {
         console.warn('agent.uploadBlob failed or produced an unexpected result. Falling back to direct xrpc POST.', innerErr?.message ?? innerErr);
         uploadResp = await uploadBlobViaXrpc(agent, img.buffer);
       }
     } else {
-      // If SDK method not present, use direct xrpc POST.
       uploadResp = await uploadBlobViaXrpc(agent, img.buffer);
     }
 
-    // Show a compact preview
-    const previewKeys = uploadResp && typeof uploadResp === 'object' ? Object.keys(uploadResp).slice(0, 8) : typeof uploadResp;
-    console.log('uploadResp preview:', previewKeys);
+    // Show compact preview for debugging
+    const preview = (uploadResp && typeof uploadResp === 'object') ? Object.keys(uploadResp).slice(0, 8) : typeof uploadResp;
+    console.log('uploadResp preview:', preview);
   } catch (err) {
     console.error('Blob upload failed:', err?.data ?? err?.message ?? err);
     process.exit(1);
@@ -149,30 +154,28 @@ async function publish() {
     console.error('Could not extract blob ref from upload response:', uploadResp);
     process.exit(1);
   }
-  console.log('Using avatar blob ref:', avatarRef);
+  console.log('Using avatar blob ref:', JSON.stringify(avatarRef));
 
-const SERVICE_DID = "did:web:bluesky-3d-porn.onrender.com";
-
-const record = {
-  displayName: FEED_NAME,
-  // point the feed declaration at the web DID that hosts your service
-  did: SERVICE_DID,
-  name: FEED_NAME,
-  description: FEED_DESC,
-  avatar: avatarRef,
-  version: '1',
-  service: `https://${SERVICE_HOSTNAME}`,
-  createdAt: new Date().toISOString()
-};
+  // build record (createdAt required)
+  const record = {
+    displayName: FEED_NAME,
+    did: SERVICE_DID,
+    name: FEED_NAME,
+    description: FEED_DESC,
+    avatar: avatarRef,
+    version: '1',
+    service: `https://${SERVICE_HOSTNAME}`,
+    createdAt: new Date().toISOString()
+  };
 
   try {
     const res = await agent.api.com.atproto.repo.putRecord({
       repo: agent.session.did,
       collection: 'app.bsky.feed.generator',
-      rkey: '3d-porn-v2',
+      rkey: RKEY,
       record,
     });
-    console.log('Feed published successfully.');
+    console.log('Feed published successfully. rkey:', RKEY);
     console.log('Response:', res.data ?? res);
   } catch (err) {
     console.error('Failed to publish feed record:', err?.data ?? err?.message ?? err);
